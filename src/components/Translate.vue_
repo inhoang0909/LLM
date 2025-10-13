@@ -1,0 +1,238 @@
+<template>
+<v-app>
+    <v-app>
+        <v-main>
+            <v-container fluid>
+                <v-row>
+                    <v-col cols="8">
+                        <v-alert color="orange" text="The best result come from EN to CN / Or vice versa. VN still not that good !"></v-alert>
+                    </v-col>
+                    <v-col cols="4">
+                        <v-select variant="solo" :items="modelListing" v-model="model" label="Model"></v-select>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                        <v-card height="600" variant="elevated" elevation="20">
+                            <v-toolbar color="primary">
+                                <v-toolbar-title>Translate from | model: {{ model }}</v-toolbar-title>
+                                <v-btn-toggle divided variant="plain" v-model="fromLang" mandatory>
+                                    <v-btn color="yellow" v-for="lang in languages" :key="lang.value" :value="lang.value">
+                                        {{ lang.text }}
+                                    </v-btn>
+                                </v-btn-toggle>
+                            </v-toolbar>
+                            <v-card-text>
+                                <v-textarea variant="solo" v-model="inputText" rows="15"></v-textarea>
+                            </v-card-text>
+                            <div class="d-flex justify-end pr-5">
+                                <v-btn variant="elevated" color="primary" @click="translate" prepend-icon="mdi-translate">Translate</v-btn>
+                            </div>
+                        </v-card>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                        <v-card min-height="600">
+                            <v-toolbar color="primary">
+                                <v-toolbar-title>Translate to</v-toolbar-title>
+                                <v-btn-toggle divided variant="plain" v-model="toLang" mandatory>
+                                    <v-btn color="yellow" v-for="lang in languages" :key="lang.value" :value="lang.value">
+                                        {{ lang.text }}
+                                    </v-btn>
+                                </v-btn-toggle>
+                            </v-toolbar>
+                            <v-card-text>
+                                <v-textarea v-model="translation" variant="solo" rows="15" readonly></v-textarea>
+                                <v-card color="primary" v-if="pinyinContent !== ''">
+                                   <v-card-text v-html="pinyinContent"></v-card-text>
+                                </v-card>
+                            </v-card-text>
+                        </v-card>
+                    </v-col>
+                    <v-col cols="12">
+                        <v-alert color="red" class="mt-2">Caution: the translate content may not accurate. We're in trial. AI may return harmful content.</v-alert>
+                    </v-col>
+                </v-row>
+            </v-container>
+        </v-main>
+    </v-app>
+</v-app>
+</template>
+
+<script>
+import {
+    ChatOllama
+} from "@langchain/community/chat_models/ollama";
+import {
+    ChatPromptTemplate
+} from "@langchain/core/prompts";
+var model = null;
+export default {
+    data() {
+        return {
+            fromLang: 'Tiếng Việt',
+            toLang: 'Chinese (Traditional)',
+            inputText: `Caution: the translate content may not accurate. We're in trial. AI may return harmful content.`,
+            translation: '',
+            pinyinContent: '',
+            languages: [{
+                    text: 'Tiếng Việt',
+                    value: 'Vietnamese'
+                },
+                {
+                    text: 'English',
+                    value: 'English'
+                },
+                {
+                    text: 'Chinese (Traditional)',
+                    value: 'Chinese (Traditional)'
+                },
+                {
+                    text: 'Chinese (Simplified)',
+                    value: 'Chinese (Simplified)'
+                }
+            ],
+            isStream: false,
+            model: 'openchat:7b',
+            modelListing: [],
+        };
+    },
+    methods: {
+        async getModelListing() {
+            try {
+                const response = await fetch('http://10.13.34.154:11434/api/tags');
+                const data = await response.json();
+                const mdlListing = data.models.map(mdl => mdl.name);
+                this.modelListing = mdlListing;
+            } catch (error) {
+                console.error(error);
+                return [];
+            }
+        },
+        async _translate() {
+            this.pinyinContent = '';
+            this.translation = 'Translating...';
+            let _this = this;
+            try {
+                const response = await fetch('http://10.13.34.154:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: this.model,
+                        prompt: this.generatePrompt(),
+                        stream: false,
+                    }),
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    _this.translation = data.response;
+                }
+            } catch (error) {
+                alert('Translate failed. Please try again.');
+                console.error(error);
+            }
+        },
+        async translate() {
+            this.pinyinContent = '';
+            this.translation = 'Translating...';
+            const prompt = ChatPromptTemplate.fromMessages([
+                [
+                    "system",
+                    `You are an expert translator. Format all responses as JSON objects with two keys: "original" and "translated". If there are any ABNORMAL character, remove it to avoid breaking your JSON output, keep USER INPUT format as linebreak, tab, space.`,
+                ],
+                ["human", `Translate the following text:\n\n"{inputText}"\n\nfrom "{fromLang}" into {toLang}.`],
+            ]);
+            const chain = prompt.pipe(model);
+            let fmtText = this.inputText.replace(/\n\s+/g, '\n');
+            const result = await chain.invoke({
+                fromLang: this.fromLang,
+                inputText: fmtText,
+                toLang: this.toLang,
+            });
+            const regex = /"original"\s*:\s*"\[object object\]"/i;
+            console.log(typeof result, result, 'translate');
+            if (typeof result === 'object' && !regex.test(result)) {
+                let _translate = JSON.parse(result.content);
+                if (_translate) {
+                    if (_translate.translated === '[Object object]') {
+                        this.translation = `Translate failed. Please try again. \n ${result.content}`;
+                        return;
+                    }
+                    this.translation = _translate.translated;
+                    if (this.toLang.includes('Chinese')) {
+                        this.pinyinGenerator(_translate.translated);
+                    }
+                } else {
+                    this.translation = `Translate failed. Please try again. \n ${result.content}`;
+                }
+            } else {
+                this.translation = `Translate failed. Please try again. \n ${result}`;
+            }
+        },
+        async pinyinGenerator(inputText) {
+            this.pinyinContent = '';
+            const prompt = ChatPromptTemplate.fromMessages([
+                [
+                    "system",
+                    `You are Chinese language master, you're providing Pinyin base on user input, remain all the USER INPUT format as linebreak (\\n), tab, space. Format all responses as JSON objects with two keys: "original" and "pinyin"`,
+                ],
+                ["human", `Provide the Pinyin for: "{inputText}"`],
+            ]);
+            const chain = prompt.pipe(model);
+            const result = await chain.invoke({
+                inputText: inputText,
+            });
+            console.log(typeof result, result, 'pinyinGenerator');
+            const regex = /"original"\s*:\s*"\[object object\]"/i;
+            if (typeof result === 'object' && !regex.test(result)) {
+                let _converted = JSON.parse(result.content);
+                if (_converted) {
+                    console.log(_converted.pinyin);
+                    this.pinyinContent = _converted.pinyin;
+                }
+            } else {
+                this.pinyinContent = `Converting to Pinyin was failed. Please try again. \n ${result}`;
+            }
+        },
+        generatePrompt() {
+            return `[INST]TRANSLATE THIS TEXT:\n\n ${this.fmtText} \n\n FROM ${this.fromLang} TO ${this.toLang}.[/INST]### Assistant:`
+        },
+        updateModel(val) {
+            model = new ChatOllama({
+                baseUrl: "http://10.13.34.154:11434",
+                model: val,
+                format: "json",
+                options: {
+                    repeat_penalty: 1.5,
+                    temperature: 0.1,
+                    num_predict: 1024,
+                }
+            });
+        },
+        // end of methods
+    },
+    computed: {
+        fmtText() {
+            return this.inputText.replace(/\n\s+/g, '\n');
+        },
+        // end of computed
+    },
+    watch: {
+        model: function (val) {
+            this.updateModel(val);
+        },
+    },
+    activated() {
+        this.getModelListing();
+        model = new ChatOllama({
+            baseUrl: "http://10.13.34.154:11434", // Default value
+            model: this.model, // Default value
+            format: "json",
+            options: {
+                repeat_penalty: 1.5,
+                temperature: 0.1,
+                num_predict: 1024,
+            }
+        });
+    },
+};
+</script>

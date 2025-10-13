@@ -1,0 +1,6 @@
+// assets/vuetifyTheme.scss
+$font: "arial", sans-serif;
+
+@use 'vuetify' with (
+  $body-font-family: $font,
+);

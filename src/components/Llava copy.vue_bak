@@ -1,0 +1,374 @@
+<template>
+  <v-app>
+    <v-main>
+      <v-container>
+        <v-row>
+          <v-col cols="6">
+            <v-card height="400">
+              <v-toolbar color="primary" >
+                <v-toolbar-title>{{ this.model }}</v-toolbar-title>
+              </v-toolbar>
+              <v-card-text>
+                <!-- <v-list three-line style="overflow-y: auto; height: 550px;" id="chatWrapper" ref="chatWrapper" class="pb-8">
+                  <template v-for="(message, mIndex) in messages" :key="mIndex">
+                    <v-list-item density="" v-if="message.show">
+                      <v-list-item-title class="text-uppercase">
+                        <img style="width: 100px;position: absolute;top: -15px;left: 67px;" v-show="isWaiting && message.role === 'assistant' && mIndex === messages.length - 1" ref="loadingGif" :src="typingGif"/>
+                        <v-btn size="x-small" :color="message.role === 'user'?'primary':'red'" variant="outlined">{{ message.role }}</v-btn>
+                      </v-list-item-title>
+                      <v-card>
+                        <v-card-text v-if="message.role === 'assistant'" :class="message.role === 'assistant' && mIndex === messages.length - 1 ? 'stream' : ''" v-html="message.content_md">
+                        </v-card-text>
+                        <v-card-text v-else="message.role === 'user'">
+                          <p>{{ message.content }}</p>
+                          <v-img v-if="message.photo_url" :src="message.photo_url" width="300px"></v-img>
+                        </v-card-text>
+                      </v-card>
+                    </v-list-item>
+                  </template>
+                </v-list> -->
+                <p>{{ visionResponse }}</p>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" class="d-flex align-center">
+            <v-row>
+              <v-col cols="12">
+                <div id="camera-wrapper">
+                  <video src="" :width="constraint.video.width.ideal" :height="constraint.video.height.ideal" id="video">
+                    <!-- webcam video goes here -->
+                  </video>
+                  <canvas :width="constraint.video.width.ideal" :height="constraint.video.height.ideal" id="canvas">
+                    <!-- webcam video goes here -->
+                  </canvas>
+                </div>
+                <v-btn color="red" @click="capturePhotoToBase64()">
+                  <v-icon class="mr-1">mdi-camera</v-icon>
+                  Capture</v-btn>
+              </v-col>
+              <!-- <v-col cols="12"><img class="elevation-10 my-auto" :src="pasted64" style="max-height: 600px; max-width: 100%;"/></v-col> -->
+            </v-row>
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="1">
+            <v-btn color="primary" class="mb-1" @click="triggerFileInputDialog" icon="mdi-paperclip"></v-btn>
+            <v-btn color="red" @click="chatReset" icon="mdi-delete-circle-outline"></v-btn>
+            <input ref="fileInput" class="d-none" type="file" @change="uploadPhoto">
+          </v-col>
+          <v-col cols="11">
+            <v-text-field v-model.number="modelOptions.temperature"></v-text-field>
+            <v-textarea rows="3" ref="chatInput" label="Type your message" @keydown="keyPressHandler" v-model="newMessage" append-icon="mdi-send" @click:append="visionRequest"></v-textarea >
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-main>
+    </v-app>
+  </template>
+  <script>
+  import typingGif from '@/assets/typing.gif'
+  var chatWrapper;
+  export default {
+    data() {
+      return {
+        typingGif,
+        pasted64: '',
+        // newMessage: `Is the person in the image wearing an ID badge?\nAnswer in JSON format as {"response":"Y"} or {"response":"N"}`,
+        newMessage: `Extract all the text.`,
+        stream: '',
+        messages: [],
+        photoDetail: null,
+        selectedItem: null,
+        isStream: false,
+        // model: 'mskimomadto/chat-gph-vision:latest',
+        model: 'minicpm-v:latest',
+        modelListing: [],
+        renderMode: 'md', // md or plaintext
+        isWaiting: true,
+        ragFile: null,
+        vectorStore: null,
+        modelOptions: { 
+          temperature: 0.3,
+          // num_ctx: 1024,
+          // stop: ['::END','�','[DONE]'],
+        },
+        photoUrl: null,
+        context: [],
+        photoBasket: [],
+        stream: null,
+        video: null,
+        canvas: null,
+        context: null,
+        visionResponse: '',
+        constraint: {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 960 },
+          },
+        },
+      };
+    },
+    methods: {
+      async getModelListing() {
+        try {
+          const response = await fetch('http://10.13.34.154:11434/api/tags');
+          const data = await response.json();
+          const mdlListing = data.models.map(mdl => mdl.name);
+          this.modelListing = mdlListing;
+        } catch (error) {
+          console.error(error);
+          return [];
+        }
+      },
+      async initWebcamStream(){
+        const stream = await navigator.mediaDevices.getUserMedia(this.constraint);
+        this.stream = stream;
+        this.video.srcObject = this.stream;
+        this.video.style.display = 'none';
+        await this.video.play();
+      },
+      async loadingCameraToCanvas(){
+        this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+        requestAnimationFrame(() => this.loadingCameraToCanvas());
+      },  
+      capturePhotoToBase64(){
+        this.pasted64 = this.canvas.toDataURL('image/png');
+      },
+      async sendMessage() {
+        if (this.newMessage.trim() !== '') {
+          this.messages.push({
+            role: 'user',
+            content: this.newMessage,
+            content_plain : this.newMessage.replace(/\n/g, '<br/>'),
+            photo_url: null,
+            images: [this.pasted64.replace('data:image/png;base64,','')],
+            show: true,
+          });
+          this.messages.push({
+            role: 'assistant',
+            content: '',
+            show: true,
+          });
+          // this.newMessage = '';
+          await this.chat();
+        }
+      },
+      async visionRequest(){
+        let _this = this;
+        this.visionResponse = '';
+        await fetch('http://10.13.34.154:11434/api/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: this.model,
+              prompt: this.newMessage,
+              options: this.modelOptions,
+              images: [this.pasted64.replace('data:image/png;base64,','')],
+              stream: false,
+              // system: 'Alway reponse in JSON to answer the question !',
+              // format: 'json'
+            }),
+          }).then(res => res.json()).then(data => {
+            _this.visionResponse = data.response;
+          }).catch(err => {
+            console.error(err);
+          });
+          
+      },  
+      addToMessages() {
+        let _content = document.querySelector('.stream').innerHTML;
+        this.messages[this.messages.length - 1].content = _content;
+        this.messages[this.messages.length - 1].content_md = this.parseMarkdown(_content);
+        this.messages[this.messages.length - 1].content_plain = _content.replace(/\n/g, '<br/>');
+      },
+      async chat() {
+        let _this = this;
+        try {
+          const response = await fetch('http://10.13.34.154:11434/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: this.model,
+              messages: this.messages,
+              options: this.modelOptions,
+              system: 'Alway reponse in JSON to answer the question !',
+              // format: 'json'
+            }),
+          });
+          _this.isWaiting = true;
+          _this.isStream = true;
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error('Failed to read response body');
+            _this.isStream = false;
+          }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              console.log('Stream finished');
+              break;
+            }
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+            lines.map((line) => line.trim()).filter((line) => line !== '');
+            document.querySelector('.stream').innerHTML += lines
+            .flat()
+            .filter((x) => x)
+            .map((x) => {
+              let _j = JSON.parse(x);
+              if(_j.done) {
+                _this.addToMessages();
+                _this.isStream = false;
+                _this.isWaiting = false;
+              }
+              return _j.message.content;
+            })
+            .join('');
+          }
+        } catch (error) {
+          console.error(error);
+          _this.isStream = false;
+          _this.isWaiting = false;
+        }
+      },
+      chatReset() {
+        this.isWaiting = false;
+        this.isStream = false;
+        this.messages = [];
+      },
+      parseMarkdown(input) {
+        const md = new MarkdownIt();
+        return md.render(input);
+      },
+      keyPressHandler(event) {
+        if (event.key === 'Enter') {
+          if (event.ctrlKey) {
+            this.newMessage += '\n';
+          } else {
+            // this.sendMessage();
+            this.capturePhotoToBase64();
+            // this.visionRequest();
+            setTimeout(() => {
+              this.visionRequest();
+            }, 500);
+            event.preventDefault();
+          }
+        }
+      },
+      triggerFileInputDialog() {
+        this.$refs.fileInput.click();
+      },
+      async uploadPhoto(){
+        this.$refs.chatInput.focus();
+      },
+      
+      // endofmethods
+    },
+    watch: {
+      isStream: function (val) {
+        if (val) {
+          chatWrapper.scrollTop = chatWrapper.scrollHeight;
+        }
+      },
+    },
+    mounted() {
+      this.video = document.getElementById('video');
+      this.canvas = document.getElementById('canvas');
+      this.context = this.canvas.getContext('2d');
+
+    },
+    activated() {
+      let _this = this;
+      chatWrapper = document.getElementById('chatWrapper');
+      setInterval(() => {
+        if(this.isStream){
+          chatWrapper.scrollTop = chatWrapper.scrollHeight;
+        }
+      }, 200);
+      document.onpaste = function (pasteEvent) {
+        for (const item of pasteEvent.clipboardData.items) {
+          if (item.type.includes('image')) {
+            const file = item.getAsFile();
+            if (file) {
+              _this.context = [];
+              _this.chatReset();
+              const reader = new FileReader();
+              reader.onload = function (event) {
+                const base64Data = event.target.result;
+                _this.pasted64 = base64Data;
+              };
+              reader.readAsDataURL(file);
+            }
+          }
+        }
+      }
+      // loadig camera to canvas
+      this.initWebcamStream().then((stream) => {
+        this.stream = stream;
+        this.loadingCameraToCanvas();
+      });
+    }
+  };
+</script>
+<style>
+canvas#canvas {
+    width: 100%;
+}
+#chatWrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #1867C0 transparent;
+}
+#chatWrapper::-webkit-scrollbar {
+  width: 10px;
+}
+#chatWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+#chatWrapper::-webkit-scrollbar-thumb {
+  background-color: #1867C0;
+  border-radius: 20px;
+  border: 3px solid transparent;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 15px #cbcbcb;
+  padding-bottom: 50px;
+  margin-bottom: 40px;
+}
+table th,
+table td {
+  padding: 10px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+table th {
+  background-color: #f4f4f4;
+}
+table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+pre {
+  background-color: #282c34;
+  color: #abb2bf;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+  white-space: pre-wrap; /* Since CSS 2.1 */
+  white-space: -moz-pre-wrap; /* Mozilla, since 1999 */
+  white-space: -pre-wrap; /* Opera 4-6 */
+  white-space: -o-pre-wrap; /* Opera 7 */
+  word-wrap: break-word; /* Internet Explorer 5.5+ */
+  font-family: 'Courier New', Courier, monospace;
+  line-height: 1.5;
+}
+</style>
