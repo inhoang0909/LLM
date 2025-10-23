@@ -246,7 +246,46 @@ async function getWordDetails(id) {
       deleteLoading.value = false;
     }
   }
+  async function handleBulkUpload(wordList) {
+    if (!Array.isArray(wordList) || !wordList.length) {
+      notify('No words to upload');
+      return;
+    }
 
+    const catMap = Object.fromEntries(
+      categories.value.map(c => [c.name.trim().toLowerCase(), c.id])
+    );
+
+    for (const word of wordList) {
+      const cats = (Array.isArray(word.categories)
+        ? word.categories
+        : word.categories?.split(',')
+      )
+        ?.map(c => catMap[c.trim().toLowerCase()])
+        .filter(Boolean);
+
+      const payload = {
+        categories: cats,
+        translations: LANGS.map(l => ({
+          language: l.code,
+          text: word[l.code]?.trim(),
+          description: word.desc?.[l.code]?.trim?.() || ''
+        })).filter(t => t.text)
+      };
+
+      // Now API is defined and available
+      await fetch(`${API}/api/add-vocabulary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    notify('Bulk upload completed');
+    await fetchWords();
+    addDialog.value = false;
+
+  }
   return {
     LANGS,
     words,
@@ -276,6 +315,7 @@ async function getWordDetails(id) {
     deleteWord,
     resetForm,
     notify,
-    getWordDetails
+    getWordDetails,
+    handleBulkUpload
   };
 }

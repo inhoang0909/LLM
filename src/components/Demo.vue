@@ -7,6 +7,7 @@
         </v-alert>
       </v-col>
 
+      <!-- Translation Input -->
       <v-col cols="12" md="6">
         <TranslateInput
           :selected-quality="selectedQuality"
@@ -29,6 +30,7 @@
         />
       </v-col>
 
+      <!-- Translation Output -->
       <v-col cols="12" md="6">
         <TranslateOutput
           :translation-raw="currentTranslation"
@@ -47,6 +49,7 @@
       </v-col>
     </v-row>
 
+    <!-- Dialogs -->
     <FeedbackDialog
       :dialog="state.improvedTrans.dialog"
       :msg="state.improvedTrans.msg"
@@ -61,6 +64,7 @@
       @close="state.dictLookup.dialog = false"
     />
 
+    <!-- Snackbar -->
     <SnackBar
       :snackbar="snackbar"
       :msg-text="msgText"
@@ -71,23 +75,26 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted, watch, toRefs } from 'vue';
+import pinyin from 'pinyin';
+import specialChars from '@/assets/specialChar.js';
 
+// Components
 import TranslateInput from './Translate/TranslateInput.vue';
 import TranslateOutput from './Translate/TranslateOutput.vue';
 import FeedbackDialog from './Translate/FeedbackDialog.vue';
 import DictionaryDialog from './Translate/DictionaryDialog.vue';
 import SnackBar from './Translate/SnackBar.vue';
 
-import pinyin from 'pinyin';
-import specialChars from '@/assets/specialChar.js';
+// Composables
 import { useTranslationHelpers } from '@/composables/useTranslationHelpers';
 import { useModels } from '@/composables/useModels';
 import { useTranslate } from '@/composables/useTranslation';
 import { useFeedback } from '@/composables/useFeedback';
 import { useImageExtract } from '@/composables/useImageExtract';
 import { useSnackbar } from '@/composables/useSnackbar';
-import { useDictionaryPage } from '@/composables/useDictionary'; // Add this import
+import { useDictionaryPage } from '@/composables/useDictionary';
 
+// ---------- STATE ----------
 const state = reactive({
   selectedQuality: 'fast',
   selectedModel: '',
@@ -106,26 +113,27 @@ const state = reactive({
     value: 'English',
     model: ''
   },
+
   languages: [
-    { text:{ en:'Vietnamese', vi:'Tiếng Việt', zh:'越南语'}, langCode:'vi', value:'Vietnamese', model:'' },
-    { text:{ en:'English', vi:'Tiếng Anh', zh:'英语'}, langCode:'en', value:'English', model:'' },
-    { text:{ en:'Chinese (Traditional)', vi:'Tiếng Trung (Phồn thể)', zh:'繁体中文'}, langCode:'tw', value:'Chinese (Traditional)', model:'' }
+    { text: { en: 'Vietnamese', vi: 'Tiếng Việt', zh: '越南语' }, langCode: 'vi', value: 'Vietnamese', model: '' },
+    { text: { en: 'English', vi: 'Tiếng Anh', zh: '英语' }, langCode: 'en', value: 'English', model: '' },
+    { text: { en: 'Chinese (Traditional)', vi: 'Tiếng Trung (Phồn thể)', zh: '繁体中文' }, langCode: 'tw', value: 'Chinese (Traditional)', model: '' }
   ],
 
-  dictLookup: { dialog:false, isLoading:false, response:{} },
-
-  improvedTrans: { rateSel:null, translatedId:'', dialog:false, msg:'' },
-
+  dictLookup: { dialog: false, isLoading: false, response: {} },
+  improvedTrans: { rateSel: null, translatedId: '', dialog: false, msg: '' },
   detectedLangCode: null,
   specialChars
 });
 
+// ---------- SNACKBAR ----------
 const { snackbar, msgText, showSnackbar } = useSnackbar();
 
-// Add dictionary functionality
+// ---------- DICTIONARY ----------
 const { categories, fetchCategories } = useDictionaryPage();
 const selectedCategories = ref([]);
 
+// ---------- MODELS ----------
 const {
   MODEL_MAP,
   modelsLoading,
@@ -138,6 +146,7 @@ const {
 watch(selectedModel, v => (state.selectedModel = v));
 watch(availableModels, v => (state.availableModels = v));
 
+// ---------- TRANSLATION ----------
 const {
   translation,
   translationsMap,
@@ -151,8 +160,10 @@ watch(translation, v => (state.translation = v));
 watch(detectedLangCode, v => (state.detectedLangCode = v));
 watch(translationsMap, v => (state.translationsMap = v));
 
+// ---------- FEEDBACK ----------
 const { rateTranslated, submitTranslateFeedback } = useFeedback(state, showSnackbar);
 
+// ---------- IMAGE EXTRACTION ----------
 const {
   uploadedImage,
   isExtractingText,
@@ -160,17 +171,16 @@ const {
   clearImage
 } = useImageExtract(state, showSnackbar);
 
+// ---------- COMPUTED ----------
 const currentTranslation = computed(() => state.enhancedTrans || state.translation);
-const hasTranslatedOnce = ref(false);
-const isManualTranslating = ref(false);
-const skipNextAutoTranslate = ref(false);
 
 const pinyinFmt = computed(() => {
-  if (!currentTranslation.value || !['cn','tw'].includes(state.toLang.langCode)) return '';
-  const cleaned = currentTranslation.value.replace(/<b>|<\/b>/g,'');
-  return pinyin(cleaned, { segment:true, group:true }).join(' ');
+  if (!currentTranslation.value || !['cn', 'tw'].includes(state.toLang.langCode)) return '';
+  const cleaned = currentTranslation.value.replace(/<b>|<\/b>/g, '');
+  return pinyin(cleaned, { segment: true, group: true }).join(' ');
 });
 
+// ---------- HELPERS ----------
 const {
   applyEnhancedTrans,
   copyContent,
@@ -178,58 +188,53 @@ const {
   changeTargetLang
 } = useTranslationHelpers(state, currentTranslation, showSnackbar);
 
-const {
-  selectedQuality,
-  inputText,
-  toLang,
-  languages,
-  enhancedTrans
-} = toRefs(state);
+const { selectedQuality, inputText, toLang, languages, enhancedTrans } = toRefs(state);
 
-// Add function to update selected categories
+// ---------- METHODS ----------
 function updateCategories(cats) {
   selectedCategories.value = cats;
 }
 
-onMounted(async () => {
-  // Fetch both models and categories
-  await Promise.all([
-    fetchAvailableModels(),
-    fetchCategories()
-  ]);
-});
-
 async function translateWrapper() {
-  skipNextAutoTranslate.value = true;
-  isManualTranslating.value = true;
+  isTranslating.value = true;
   await translate();
-  hasTranslatedOnce.value = true;
-  isManualTranslating.value = false;
+  // hasTranslatedOnce.value = true;
+  isTranslating.value = false;
 }
 
-watch(
-  [
-    selectedModel,
-    availableModels,
-    translation,
-    detectedLangCode,
-    translationsMap
-  ],
-  ([model, models, trans, lang, map]) => {
-    state.selectedModel = model;
-    state.availableModels = models;
-    state.translation = trans;
-    state.detectedLangCode = lang;
-    state.translationsMap = map;
-  }
-);
+onMounted(async () => {
+  await Promise.all([fetchAvailableModels(), fetchCategories()]);
+
+})
 </script>
 
-<style>
-#output b { text-decoration: underline; color: orange; }
-.simpleTable { border-collapse: collapse; width: 100%; }
-.simpleTable th, .simpleTable td { border:1px solid #ddd; padding:8px; text-align:left; }
-.simpleTable th { background:#f2f2f2; }
-.simpleTable tr:nth-child(even){ background:#f9f9f9; }
-.simpleTable tr:hover { background:#f1f1f1; }
+<style scoped>
+#output b {
+  text-decoration: underline;
+  color: orange;
+}
+
+.simpleTable {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.simpleTable th,
+.simpleTable td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.simpleTable th {
+  background: #f2f2f2;
+}
+
+.simpleTable tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.simpleTable tr:hover {
+  background: #f1f1f1;
+}
 </style>

@@ -556,7 +556,7 @@ export default {
             this.showSnackbar(`${text}`);
         },
         async deleteWord(){
-            let _p = this.$t('notify.deleteWordConfirm');
+            let _p = this.$t('dict.deleteWordConfirm');
             if(!confirm(_p)){
                 return;
             }
@@ -571,14 +571,14 @@ export default {
             }).then(response => response.json())
             .then(data => {
                 console.log('Success:', data);
-                this.showSnackbar(this.$t('notify.dictWordDeleted'))
+                this.showSnackbar(this.$t('dict.dictWordDeleted'))
                 this.wordDialog = false;
                 this.resetNewWordTemplate();
                 this.getAllWords();
             })
             .catch((error) => {
                 console.error('Error:', error);
-                this.showSnackbar(this.$t('notify.dictWordNotDeleted'))
+                this.showSnackbar(this.$t('dict.dictWordNotDeleted'))
             });
         },
         resetNewWordTemplate(){

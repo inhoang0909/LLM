@@ -35,6 +35,8 @@ const i18n = createI18n({
                 llava: 'Vision',
                 visionMode: 'Vision Mode',
                 dictionary: 'Dictionary',
+                logout: 'Logout',
+                dept: 'Department',
             },
             trans: {
                 warning: 'Warning: translation content may not be accurate. We are in the testing phase. AI may return harmful content.',
@@ -80,7 +82,6 @@ const i18n = createI18n({
                 'zh-tw': 'Chinese Traditional',
                 newWord: 'New Word',
                 searchPlaceholder: 'Search...',
-                updateWord: 'Update Word',
                 autoTranslate: 'Auto Translate',
                 saveNewWord: 'Save New Word',
                 updateWord: 'Update Word',
@@ -98,6 +99,17 @@ const i18n = createI18n({
                 reset: 'Reset',
                 selectWordToView: "Please select a word to view details.",
                 selectAtLeastOneCategory: "Please select at least one category.",
+                addManually: 'Add Manually',
+                uploadFile: 'Upload File',
+                selectFile: 'Select File',
+                fileFormatInfo: 'Supported formats: JSON, CSV, Excel (.xlsx)',
+                preview: 'Preview',
+                uploadWords: 'Upload {count} words',
+                unsupportedFileFormat: 'Unsupported file format',
+                fileParseError: 'Error parsing file',
+                bulkUploadSuccess: 'Words uploaded successfully',
+                bulkUploadError: 'Error uploading words',
+                description: 'Description',
             },
             ui: {
                 cancel: 'Cancel',
@@ -116,6 +128,17 @@ const i18n = createI18n({
                 yourFeedbackIsVeryImportant: 'Your feedback is very important to us.',
                 thankYouForRating: 'Thank you for rating!',
                 checkSourceFormat: 'Please check the source format.',
+            },
+            login: {
+                title: 'Sign In',
+                subtitle: 'Access the dictionary',
+                username: 'Username',
+                password: 'Password',
+                signIn: 'Sign In',
+                required: 'This field is required',
+                invalidCredentials: 'Invalid username or password',
+                networkError: 'Network error. Please try again.',
+                accessDenied: 'Access denied. You do not have permission to use the dictionary.'
             }
         },
         vi: {
@@ -128,6 +151,8 @@ const i18n = createI18n({
                 llava: 'Vision',
                 visionMode: 'Chế độ Vision',
                 dictionary: 'Từ điển',
+                logout: 'Đăng xuất',
+                dept: 'Phòng ban',
             },
             trans: {
                 warning: 'Thận trọng: nội dung dịch có thể không chính xác. Chúng tôi đang trong giai đoạn thử nghiệm. AI có thể trả lại nội dung có hại.',
@@ -194,6 +219,17 @@ const i18n = createI18n({
                 selectWordToView: "Vui lòng chọn một từ để xem chi tiết.",
                 enterAtLeastOneLangAndCategory: "Vui lòng nhập ít nhất một ngôn ngữ và một danh mục.",
                 selectAtLeastOneCategory: "Vui lòng chọn ít nhất một danh mục.",
+                addManually: 'Thêm thủ công',
+                uploadFile: 'Tải tệp lên',
+                selectFile: 'Chọn tệp',
+                fileFormatInfo: 'Định dạng được hỗ trợ: JSON, CSV, Excel (.xlsx)',
+                preview: 'Xem trước',
+                uploadWords: 'Tải lên {count} từ',
+                unsupportedFileFormat: 'Định dạng tệp không được hỗ trợ',
+                fileParseError: 'Lỗi khi phân tích tệp',
+                bulkUploadSuccess: 'Từ đã được tải lên thành công',
+                bulkUploadError: 'Lỗi khi tải từ lên',
+                enterAtLeastOneLangAndCategory: "Vui lòng nhập ít nhất một ngôn ngữ và một danh mục.",
             },
             ui: {
                 cancel: 'Hủy',
@@ -211,7 +247,18 @@ const i18n = createI18n({
                 thankYouForRating: 'Cảm ơn bạn đã đánh giá!',
                 yourFeedbackIsVeryImportant: 'Ý kiến của bạn rất quan trọng với chúng tôi.',
                 checkSourceFormat: 'Vui lòng kiểm tra định dạng nguồn dịch.',
-            }
+            },
+            login: {
+                title: 'Đăng nhập',
+                subtitle: 'Truy cập từ điển',
+                username: 'Tên đăng nhập',
+                password: 'Mật khẩu',
+                signIn: 'Đăng nhập',
+                required: 'Vui lòng nhập đầy đủ',
+                invalidCredentials: 'Sai tên đăng nhập hoặc mật khẩu',
+                networkError: 'Lỗi mạng. Vui lòng thử lại.',
+                accessDenied: 'Từ chối truy cập. Bạn không có quyền sử dụng từ điển.'
+            },
         }, 
         zh: {
             nav: {
@@ -223,6 +270,8 @@ const i18n = createI18n({
                 llava: 'Llava',
                 visionMode: '视觉模式',
                 dictionary: '字典',
+                logout: '登出',
+                dept: '部门',
             },
             trans: {
                 warning: '警告：翻译内容可能不准确。我们正在测试阶段。AI可能会返回有害内容。',
@@ -288,6 +337,17 @@ const i18n = createI18n({
                 selectWordToView: "请选择一个词汇以查看详情。",
                 enterAtLeastOneLangAndCategory: "请输入至少一种目标语言和一个类别。",
                 selectAtLeastOneCategory: "请选择至少一个类别。",
+                addManually: '手动添加',
+                uploadFile: '上传文件',
+                selectFile: '选择文件',
+                fileFormatInfo: '支持的格式：JSON，CSV，Excel（.xlsx）',
+                preview: '预览',
+                uploadWords: '上传 {count} 个词',
+                unsupportedFileFormat: '不支持的文件格式',
+                fileParseError: '解析文件时出错',
+                bulkUploadSuccess: '词汇上传成功',
+                bulkUploadError: '上传词汇时出错',
+                enterAtLeastOneLangAndCategory: "请输入至少一种目标语言和一个类别。",
             },
             ui: {
                 cancel: '取消',
@@ -305,7 +365,18 @@ const i18n = createI18n({
                 thankYouForRating: '感谢您的评分！',
                 yourFeedbackIsVeryImportant: '您的反馈对我们非常重要。',
                 checkSourceFormat: '请检查源格式。',
-            }
+            },
+              login: {
+                title: '登录',
+                subtitle: '访问字典和翻译工具',
+                username: '用户名',
+                password: '密码',
+                signIn: '登录',
+                required: '此字段为必填项',
+                invalidCredentials: '用户名或密码错误',
+                networkError: '网络错误，请重试。',
+                accessDenied: '拒绝访问。您没有使用字典的权限。'
+            },
         }
     }});
     app.use(i18n)

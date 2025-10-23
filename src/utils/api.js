@@ -104,3 +104,9 @@ export function getCategories() {
   const DICT_API = import.meta.env.VITE_DICTIONARY_API;
   return jsonFetch(`${DICT_API}/api/categories`);
 }
+
+export function getWordDetails(id) {
+  const DICT_API = import.meta.env.VITE_DICTIONARY_API;
+  return jsonFetch(`${DICT_API}/api/vocabulary/${id}`);
+}
+
